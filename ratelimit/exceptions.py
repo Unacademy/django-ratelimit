@@ -12,4 +12,4 @@ class Ratelimited(Exception):
 try:
     raise Ratelimited(429)
 except Ratelimited as e:
-    print("Too many requests, Please retry after some time:", e.code)
+    print("Too many requests, Please retry after some time:", e.code) 
