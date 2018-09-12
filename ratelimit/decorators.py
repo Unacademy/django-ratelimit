@@ -26,7 +26,7 @@ def ratelimit(group=None, key=None, rate=None, method=ALL, block=False, reset=No
                                          key=key, rate=rate, method=method,
                                          increment=True, reset=reset)
             if ratelimited and block:
-                raise Ratelimited()
+                raise Ratelimited(*args, **kw)
             return fn(*args, **kw)
         return _wrapped
     return decorator
