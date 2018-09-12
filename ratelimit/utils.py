@@ -101,7 +101,7 @@ def _make_cache_key(group, rate, value, methods):
 
 
 def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
-                   method=ALL, increment=False):
+                   method=ALL, increment=False, reset=None):
     if group is None:
         if hasattr(fn, '__self__'):
             parts = fn.__module__, fn.__self__.__class__.__name__, fn.__name__
