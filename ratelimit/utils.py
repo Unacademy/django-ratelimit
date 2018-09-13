@@ -124,7 +124,7 @@ def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
     if rate is None:
         request.limited = old_limited
         return False
-    usage = get_usage_count(request, group, fn, key, rate, method, increment)
+    usage = get_usage_count(request, group, fn, key, rate, method, increment,reset)
 
     fail_open = getattr(settings, 'RATELIMIT_FAIL_OPEN', False)
 
@@ -141,7 +141,7 @@ def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
 
 
 def get_usage_count(request, group=None, fn=None, key=None, rate=None,
-                    method=ALL, increment=False):
+                    method=ALL, increment=False,reset=None):
     if not key:
         raise ImproperlyConfigured('Ratelimit key must be specified')
     limit, period = _split_rate(rate)
@@ -166,6 +166,12 @@ def get_usage_count(request, group=None, fn=None, key=None, rate=None,
             'Could not understand ratelimit key: %s' % key)
 
     cache_key = _make_cache_key(group, rate, value, method)
+
+    if reset and callable(reset):
+        should_reset = reset(request)
+        if should_reset:
+            cache.delete(cache_key)
+
     time_left = _get_window(value, period) - int(time.time())
     initial_value = 1 if increment else 0
     added = cache.add(cache_key, initial_value, period + EXPIRATION_FUDGE)
