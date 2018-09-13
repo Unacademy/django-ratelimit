@@ -1,7 +1,5 @@
-class Ratelimited(Exception):
-    def __init__(self, message, code):
-        self.message = message
-        self.code = code
+from django.core.exceptions import PermissionDenied
 
-    def __str__(self):
-        return self.message
+
+class Ratelimited(PermissionDenied):
+    pass
