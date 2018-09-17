@@ -151,6 +151,7 @@ def get_usage_count(request, group=None, fn=None, key=None, rate=None,
     if callable(key):
         value = key(group, request)
     elif key in _SIMPLE_KEYS:
+        print(_SIMPLE_KEYS[key](request))
         value = _SIMPLE_KEYS[key](request)
     elif ':' in key:
         accessor, k = key.split(':', 1)
