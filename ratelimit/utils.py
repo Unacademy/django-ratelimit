@@ -27,11 +27,11 @@ EXPIRATION_FUDGE = 5
 def user_or_ip(request):
     if is_authenticated(request.user):
         return str(request.user.pk)
-    return request.META['REMOTE_ADDR']
+    return request.META.get('HTTP_X_FORWARDED_FOR')
 
 
 _SIMPLE_KEYS = {
-    'ip': lambda r: r.META['REMOTE_ADDR'],
+    'ip': lambda r: r.META.get('HTTP_X_FORWARDED_FOR'),
     'user': lambda r: str(r.user.pk),
     'user_or_ip': user_or_ip,
 }
