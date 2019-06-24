@@ -96,5 +96,3 @@ class RedisRateLimiter(RateLimiter):
 
 
 connection = RedisRateLimiterConnection(host=settings.REDIS_HOST_INTERNAL, port=6379, db=0)
-
-RedisRateLimit = RedisRateLimiter()
