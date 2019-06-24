@@ -7,9 +7,9 @@ from importlib import import_module
 from django.conf import settings
 from django.core.cache import caches
 from django.core.exceptions import ImproperlyConfigured
+from redis_rate_limit import connection, RedisRateLimiter
 
 from ratelimit import ALL, UNSAFE
-
 
 __all__ = ['is_ratelimited']
 
@@ -100,6 +100,36 @@ def _make_cache_key(group, rate, value, methods):
     return prefix + hashlib.md5(u''.join(parts).encode('utf-8')).hexdigest()
 
 
+def _get_usage_count(request, group=None, fn=None, key=None, rate=None,
+                     method=ALL, increment=False, reset=None):
+    if not key:
+        raise ImproperlyConfigured('Ratelimit key must be specified')
+    limit, period = _split_rate(rate)
+
+    if callable(key):
+        value = key(group, request)
+    elif key in _SIMPLE_KEYS:
+        print(_SIMPLE_KEYS[key](request))
+        value = _SIMPLE_KEYS[key](request)
+    elif ':' in key:
+        accessor, k = key.split(':', 1)
+        if accessor not in _ACCESSOR_KEYS:
+            raise ImproperlyConfigured('Unknown ratelimit key: %s' % key)
+        value = _ACCESSOR_KEYS[accessor](request, k)
+    elif '.' in key:
+        mod, attr = key.rsplit('.', 1)
+        keyfn = getattr(import_module(mod), attr)
+        value = keyfn(group, request)
+    else:
+        raise ImproperlyConfigured(
+            'Could not understand ratelimit key: %s' % key)
+
+    cache_key = _make_cache_key(group, rate, value, method)
+    redis_limiter = RedisRateLimiter(limit=limit, window=period, connection=connection, key=cache_key)
+    count = redis_limiter.count()
+    return {'count': count, 'limit': limit}
+
+
 def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
                    method=ALL, increment=False, reset=None):
     if group is None:
@@ -124,7 +154,7 @@ def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
     if rate is None:
         request.limited = old_limited
         return False
-    usage = get_usage_count(request, group, fn, key, rate, method, increment,reset)
+    usage = _get_usage_count(request, group, fn, key, rate, method, increment, reset)
 
     fail_open = getattr(settings, 'RATELIMIT_FAIL_OPEN', False)
 
@@ -141,7 +171,7 @@ def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
 
 
 def get_usage_count(request, group=None, fn=None, key=None, rate=None,
-                    method=ALL, increment=False,reset=None):
+                    method=ALL, increment=False, reset=None):
     if not key:
         raise ImproperlyConfigured('Ratelimit key must be specified')
     limit, period = _split_rate(rate)
