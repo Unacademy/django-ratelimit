@@ -85,10 +85,13 @@ def _get_window(value, period):
     return w
 
 
-def _make_cache_key(group, rate, value, methods):
+def _make_cache_key(group, rate, value, methods, sliding_window=False):
     count, period = _split_rate(rate)
     safe_rate = '%d/%ds' % (count, period)
-    window = _get_window(value, period)
+    if sliding_window:
+        window = ''
+    else:
+        window = _get_window(value, period)
     parts = [group + safe_rate, value, str(window)]
     if methods is not None:
         if methods == ALL:
@@ -101,7 +104,7 @@ def _make_cache_key(group, rate, value, methods):
 
 
 def _get_usage_count(request, group=None, fn=None, key=None, rate=None,
-                     method=ALL, increment=False, reset=None):
+                     method=ALL, increment=False, reset=None, sliding_window=True):
     if not key:
         raise ImproperlyConfigured('Ratelimit key must be specified')
     limit, period = _split_rate(rate)
@@ -124,7 +127,7 @@ def _get_usage_count(request, group=None, fn=None, key=None, rate=None,
         raise ImproperlyConfigured(
             'Could not understand ratelimit key: %s' % key)
 
-    cache_key = _make_cache_key(group, rate, value, method)
+    cache_key = _make_cache_key(group, rate, value, method, sliding_window)
     redis_limiter = RedisRateLimiter(limit=limit, window=period, connection=redis_connection, key=cache_key)
     count = redis_limiter.count()
     return {'count': count, 'limit': limit}
@@ -155,7 +158,7 @@ def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
         request.limited = old_limited
         return False
     if sliding_window:
-        usage = _get_usage_count(request, group, fn, key, rate, method, increment, reset)
+        usage = _get_usage_count(request, group, fn, key, rate, method, increment, reset, sliding_window)
     else:
         usage = get_usage_count(request, group, fn, key, rate, method, increment, reset)
 

@@ -74,6 +74,7 @@ class RedisRateLimiter(RateLimiter):
         self._pipeline.zadd(
             self._key, key_value, key_value
         )
+        self._pipeline.expire(self._key, self._window) # set key expiry
         self._pipeline.execute()
 
     def is_allowed(self, log_current_request=True):
