@@ -7,7 +7,7 @@ from importlib import import_module
 from django.conf import settings
 from django.core.cache import caches
 from django.core.exceptions import ImproperlyConfigured
-from redis_rate_limit import connection, RedisRateLimiter
+from redis_rate_limit import redis_connection, RedisRateLimiter
 
 from ratelimit import ALL, UNSAFE
 
@@ -125,13 +125,13 @@ def _get_usage_count(request, group=None, fn=None, key=None, rate=None,
             'Could not understand ratelimit key: %s' % key)
 
     cache_key = _make_cache_key(group, rate, value, method)
-    redis_limiter = RedisRateLimiter(limit=limit, window=period, connection=connection, key=cache_key)
+    redis_limiter = RedisRateLimiter(limit=limit, window=period, connection=redis_connection, key=cache_key)
     count = redis_limiter.count()
     return {'count': count, 'limit': limit}
 
 
 def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
-                   method=ALL, increment=False, reset=None):
+                   method=ALL, increment=False, reset=None, sliding_window=True):
     if group is None:
         if hasattr(fn, '__self__'):
             parts = fn.__module__, fn.__self__.__class__.__name__, fn.__name__
@@ -154,7 +154,10 @@ def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
     if rate is None:
         request.limited = old_limited
         return False
-    usage = _get_usage_count(request, group, fn, key, rate, method, increment, reset)
+    if sliding_window:
+        usage = _get_usage_count(request, group, fn, key, rate, method, increment, reset)
+    else:
+        usage = get_usage_count(request, group, fn, key, rate, method, increment, reset)
 
     fail_open = getattr(settings, 'RATELIMIT_FAIL_OPEN', False)
 

@@ -67,12 +67,12 @@ class RedisRateLimiterConnection(object):
 class RedisRateLimiter(RateLimiter):
     def __init__(self, limit, window, connection, key):
         super(RedisRateLimiter, self).__init__(limit, window, connection, key)
-        self._pipeline = self._connection.pipeline()
+        self._pipeline = self._connection.connection.pipeline()
 
     def _increment_request(self):
         key_value = int(time.time()) + self._window
         self._pipeline.zadd(
-            self._key, {key_value: key_value},
+            self._key, key_value, key_value
         )
         self._pipeline.execute()
 
@@ -95,4 +95,4 @@ class RedisRateLimiter(RateLimiter):
         return result[-1]
 
 
-connection = RedisRateLimiterConnection(host=settings.REDIS_HOST_INTERNAL, port=6379, db=0)
+redis_connection = RedisRateLimiterConnection(host=settings.REDIS_HOST_INTERNAL, port=6379, db=0)
