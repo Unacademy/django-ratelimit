@@ -173,7 +173,7 @@ def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
         return False
 
     if max_offence_rate is not None:
-        offence_report = get_offence_count(group, max_offence_rate, key, method, sliding_window)
+        offence_report = get_offence_count(request, group, max_offence_rate, key, method, sliding_window)
         offence_count = offence_report.get('count')
         if offence_count is not None:
             max_offence_count = offence_report.get('limit')
@@ -198,7 +198,7 @@ def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
         request.limited = old_limited or limited
 
     if limited:
-        get_offence_count(group, max_offence_rate, key, method, sliding_window, count_current_request=True)
+        get_offence_count(request, group, max_offence_rate, key, method, sliding_window, count_current_request=True)
 
     return limited
 
