@@ -103,12 +103,9 @@ def _make_cache_key(group, rate, value, methods, sliding_window=False):
     return prefix + hashlib.md5(u''.join(parts).encode('utf-8')).hexdigest()
 
 
-def _get_usage_count(request, group=None, fn=None, key=None, rate=None,
-                     method=ALL, increment=False, reset=None, sliding_window=True):
+def _get_value_from_key(request, group=None, key=None):
     if not key:
         raise ImproperlyConfigured('Ratelimit key must be specified')
-    limit, period = _split_rate(rate)
-
     if callable(key):
         value = key(group, request)
     elif key in _SIMPLE_KEYS:
@@ -126,15 +123,32 @@ def _get_usage_count(request, group=None, fn=None, key=None, rate=None,
     else:
         raise ImproperlyConfigured(
             'Could not understand ratelimit key: %s' % key)
+    return value
 
+
+def _get_usage_count(request, group=None, fn=None, key=None, rate=None,
+                     method=ALL, increment=False, reset=None, sliding_window=True):
+    value = _get_value_from_key(request, group=group, key=key)
+    limit, period = _split_rate(rate)
     cache_key = _make_cache_key(group, rate, value, method, sliding_window)
     redis_limiter = RedisRateLimiter(limit=limit, window=period, connection=redis_connection, key=cache_key)
     count = redis_limiter.count()
     return {'count': count, 'limit': limit}
 
 
+def get_offence_count(request, group=None, max_offence_rate=None,
+                      key=None, method=ALL, sliding_window=True, count_current_request=False):
+    value = _get_value_from_key(request, group=group, key=key)
+    limit, period = _split_rate(max_offence_rate)
+    cache_key = _make_cache_key(group, max_offence_rate, value, method, sliding_window)
+    redis_limiter = RedisRateLimiter(limit=limit, window=period, connection=redis_connection, key=cache_key)
+    count = redis_limiter.count(log_current_request=count_current_request)
+    return {'count': count, 'limit': limit}
+
+
 def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
-                   method=ALL, increment=False, reset=None, sliding_window=True):
+                   method=ALL, increment=False, reset=None, sliding_window=True,
+                   max_offence_rate=None):
     if group is None:
         if hasattr(fn, '__self__'):
             parts = fn.__module__, fn.__self__.__class__.__name__, fn.__name__
@@ -157,6 +171,15 @@ def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
     if rate is None:
         request.limited = old_limited
         return False
+
+    if max_offence_rate is not None:
+        offence_report = get_offence_count(group, max_offence_rate, key, method, sliding_window)
+        offence_count = offence_report.get('count')
+        if offence_count is not None:
+            max_offence_count = offence_report.get('limit')
+            if offence_count >= max_offence_count:
+                return False
+
     if sliding_window:
         usage = _get_usage_count(request, group, fn, key, rate, method, increment, reset, sliding_window)
     else:
@@ -173,6 +196,10 @@ def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
 
     if increment:
         request.limited = old_limited or limited
+
+    if limited:
+        get_offence_count(group, max_offence_rate, key, method, sliding_window, count_current_request=True)
+
     return limited
 
 
