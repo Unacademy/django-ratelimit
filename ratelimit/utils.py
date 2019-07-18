@@ -143,7 +143,7 @@ def get_offence_count(request, group=None, max_offence_rate=None,
     cache_key = _make_cache_key(group, max_offence_rate, value, method, sliding_window)
     redis_limiter = RedisRateLimiter(limit=limit, window=period, connection=redis_connection, key=cache_key)
     count = redis_limiter.count(log_current_request=count_current_request)
-    return {'count': count, 'limit': limit, 'limiter': redis_limiter}
+    return {'count': count, 'limit': limit}
 
 
 def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
@@ -199,8 +199,9 @@ def is_ratelimited(request, group=None, fn=None, key=None, rate=None,
     if increment:
         request.limited = old_limited or limited
 
-    if limited:
-        get_offence_count(request, group, max_offence_rate, key, method, sliding_window, count_current_request=True)
+    if max_offence_rate is not None and limited:
+        get_offence_count(request, group, max_offence_rate, key, method,
+                          sliding_window, count_current_request=True)
 
     return limited
 
