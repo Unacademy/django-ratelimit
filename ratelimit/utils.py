@@ -13,7 +13,7 @@ from redis_rate_limit import redis_connection, RedisRateLimiter, IpRateLimiter
 
 from ratelimit import ALL, UNSAFE
 
-__all__ = ['is_ratelimited']
+__all__ = ['is_ratelimited', 'unblock_ip', 'block_ip', 'is_request_allowed']
 
 _PERIODS = {
     's': 1,
