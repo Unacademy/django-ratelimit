@@ -92,6 +92,7 @@ def is_a_valid_rate(rate):
         return False
     return True
 
+
 def _get_window(value, period):
     ts = int(time.time())
     if period == 1:
