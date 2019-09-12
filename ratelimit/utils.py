@@ -13,7 +13,7 @@ from redis_rate_limit import redis_connection, RedisRateLimiter, IpRateLimiter
 
 from ratelimit import ALL, UNSAFE
 
-__all__ = ['is_ratelimited', 'unblock_ip', 'block_ip', 'is_request_allowed']
+__all__ = ['is_ratelimited', 'unblock_ip', 'block_ip', 'is_request_allowed', 'is_a_valid_rate']
 
 _PERIODS = {
     's': 1,
@@ -74,6 +74,23 @@ def _split_rate(rate):
         seconds = seconds * int(multi)
     return count, seconds
 
+
+def is_a_valid_rate(rate):
+    if not isinstance(rate, str):
+        return False
+    count, multi, period = rate_re.match(rate).groups()
+    try:
+        count = int(count)
+    except ValueError as e:
+        return False
+    if multi:
+        try:
+            multi = int(multi)
+        except ValueError as e:
+            return False
+    if period not in _PERIODS:
+        return False
+    return True
 
 def _get_window(value, period):
     ts = int(time.time())
