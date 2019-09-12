@@ -1,4 +1,5 @@
 import hashlib
+import json
 import re
 import time
 import zlib
@@ -7,7 +8,8 @@ from importlib import import_module
 from django.conf import settings
 from django.core.cache import caches
 from django.core.exceptions import ImproperlyConfigured
-from redis_rate_limit import redis_connection, RedisRateLimiter
+
+from redis_rate_limit import redis_connection, RedisRateLimiter, IpRateLimiter
 
 from ratelimit import ALL, UNSAFE
 
@@ -265,3 +267,32 @@ def is_authenticated(user):
         return user.is_authenticated()
     else:
         return user.is_authenticated
+
+
+def get_cache_key_for_ip_blocking(request, func):
+    ip = _SIMPLE_KEYS['ip'](request)
+    name = func.__name__
+    keys = [ip, name]
+    return 'ip_rl:' + hashlib.md5(u''.join(keys).encode('utf-8')).hexdigest()
+
+
+def is_request_allowed(request, func, rate):
+    limit, period = _split_rate(rate)
+    cache_key = get_cache_key_for_ip_blocking(request, func)
+    redis_set = IpRateLimiter(limit=limit, window=period, connection=redis_connection, key=cache_key)
+    return redis_set.is_allowed()
+
+
+def block_ip(request, func, function_to_get_attributes, rate):
+    limit, period = _split_rate(rate)
+    cache_key = get_cache_key_for_ip_blocking(request, func)
+    redis_set = IpRateLimiter(limit=limit, window=period, connection=redis_connection, key=cache_key)
+    hash_value = hashlib.md5(json.dumps(function_to_get_attributes(request))).hexdigest()
+    redis_set.add(hash_value)
+
+
+def unblock_ip(request, func, rate):
+    limit, period = _split_rate(rate)
+    cache_key = get_cache_key_for_ip_blocking(request, func)
+    redis_set = IpRateLimiter(limit=limit, window=period, connection=redis_connection, key=cache_key)
+    redis_set.delete()

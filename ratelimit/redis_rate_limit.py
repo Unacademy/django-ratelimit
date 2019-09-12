@@ -96,4 +96,32 @@ class RedisRateLimiter(RateLimiter):
         return result[-1]
 
 
+class IpRateLimiter(RateLimiter):
+    def __init__(self, limit, window, connection, key):
+        super(IpRateLimiter, self).__init__(limit, window, connection, key)
+        self.connection = self._connection.connection
+
+    def add(self, value):
+        self.connection.sadd(self._key, value)
+        self.connection.expire(self._key, self._window)
+
+    def count(self):
+        return self.connection.scard(self._key)
+
+    def delete(self):
+        self.connection.delete(self._key)
+
+    def is_allowed(self, log_current_request=True):
+        if not self.connection.exists(self._key):
+            return True
+        if self.connection.ttl(self._key) < 0:
+            self.delete()
+            return True
+        return self.count() < self._limit
+
+    @property
+    def remaining_requests(self):
+        return self._limit - self.count()
+
+
 redis_connection = RedisRateLimiterConnection(host=settings.REDIS_HOST_INTERNAL, port=6379, db=0)
