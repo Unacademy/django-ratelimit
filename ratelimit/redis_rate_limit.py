@@ -99,25 +99,33 @@ class RedisRateLimiter(RateLimiter):
 class IpRateLimiter(RateLimiter):
     def __init__(self, limit, window, connection, key):
         super(IpRateLimiter, self).__init__(limit, window, connection, key)
-        self.connection = self._connection.connection
+        self._pipeline = self._connection.connection.pipeline()
 
     def add(self, value):
-        self.connection.sadd(self._key, value)
-        self.connection.expire(self._key, self._window)
+        self._pipeline.sadd(self._key, value)
+        self._pipeline.expire(self._key, self._window)
+        self._pipeline.execute()
 
     def count(self):
-        return self.connection.scard(self._key)
+        self._pipeline.scard(self._key)
+        result = self._pipeline.execute()
+        return result[0]
 
     def delete(self):
-        self.connection.delete(self._key)
+        self._pipeline.delete(self._key)
+        self._pipeline.execute()
 
     def is_allowed(self, log_current_request=True):
-        if not self.connection.exists(self._key):
+        self._pipeline.exists(self._key)
+        self._pipeline.ttl(self._key)
+        self._pipeline.scard(self._key)
+        results = self._pipeline.execute()
+        if not results[0]:
             return True
-        if self.connection.ttl(self._key) < 0:
+        if results[1] < 0:
             self.delete()
             return True
-        return self.count() < self._limit
+        return results[2], self._limit
 
     @property
     def remaining_requests(self):
