@@ -13,7 +13,7 @@ from redis_rate_limit import redis_connection, RedisRateLimiter, IpRateLimiter
 
 from ratelimit import ALL, UNSAFE
 
-__all__ = ['is_ratelimited', 'unblock_ip', 'block_ip', 'is_request_allowed']
+__all__ = ['is_ratelimited', 'unblock_ip', 'block_ip', 'is_request_allowed', 'get_ip_from_request']
 
 _PERIODS = {
     's': 1,
@@ -270,7 +270,7 @@ def is_authenticated(user):
 
 
 def get_cache_key_for_ip_blocking(request, func):
-    ip = _SIMPLE_KEYS['ip'](request)
+    ip = get_ip_from_request(request)
     name = func.__name__
     keys = [ip, name]
     return 'ip_rl:' + hashlib.md5(u''.join(keys).encode('utf-8')).hexdigest()
@@ -296,3 +296,7 @@ def unblock_ip(request, func, rate):
     cache_key = get_cache_key_for_ip_blocking(request, func)
     redis_set = IpRateLimiter(limit=limit, window=period, connection=redis_connection, key=cache_key)
     redis_set.delete()
+
+
+def get_ip_from_request(request):
+    return _SIMPLE_KEYS['ip'](request)
