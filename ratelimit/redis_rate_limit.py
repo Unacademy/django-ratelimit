@@ -125,7 +125,7 @@ class IpRateLimiter(RateLimiter):
         if results[1] < 0:
             self.delete()
             return True
-        return results[2], self._limit
+        return results[2] < self._limit
 
     @property
     def remaining_requests(self):
