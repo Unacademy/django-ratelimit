@@ -13,7 +13,7 @@ from redis_rate_limit import redis_connection, RedisRateLimiter, IpRateLimiter
 
 from ratelimit import ALL, UNSAFE
 
-__all__ = ['is_ratelimited', 'unblock_ip', 'block_ip', 'is_request_allowed', 'get_ip_from_request']
+__all__ = ['is_ratelimited', 'unblock_ip', 'block_ip', 'is_request_allowed', 'get_custom_ip_from_request']
 
 _PERIODS = {
     's': 1,
@@ -33,6 +33,7 @@ def user_or_ip(request):
 
 
 _SIMPLE_KEYS = {
+    'custom_ip': lambda r: r.META.get('HTTP_X_' + settings.PROXY_PASS_CUSTOM_HEADER_NAME + "_CLIENT_IP", None),
     'ip': lambda r: r.META['HTTP_X_FORWARDED_FOR'],
     'user': lambda r: str(r.user.pk),
     'user_or_ip': user_or_ip,
@@ -270,7 +271,7 @@ def is_authenticated(user):
 
 
 def get_cache_key_for_ip_blocking(request, func):
-    ip = get_ip_from_request(request)
+    ip = get_custom_ip_from_request(request)
     name = func.__name__
     keys = [ip, name]
     return 'ip_rl:' + hashlib.md5(u''.join(keys).encode('utf-8')).hexdigest()
@@ -298,5 +299,5 @@ def unblock_ip(request, func, rate):
     redis_set.delete()
 
 
-def get_ip_from_request(request):
-    return _SIMPLE_KEYS['ip'](request)
+def get_custom_ip_from_request(request):
+    return _SIMPLE_KEYS['custom_ip'](request)
