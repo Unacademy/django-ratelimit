@@ -294,7 +294,7 @@ def block_ip(request, func, function_to_get_attributes, rate):
 
 def get_custom_ip_from_request(request):
     ips = request.META.get('HTTP_X_' + settings.PROXY_PASS_CUSTOM_HEADER_NAME + "_CLIENT_IP", None)
-    if ips in None:
+    if ips is None:
         return None
     ips = ips.split(",")
     if len(ips) == 0:
