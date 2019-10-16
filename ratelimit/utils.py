@@ -304,7 +304,7 @@ def get_right_most_public_ip(ips):
 
 
 def get_custom_ip_from_request(request):
-    ips = request.META.get('HTTP_X_' + settings.PROXY_PASS_CUSTOM_HEADER_NAME + "_CLIENT_IP", None)
+    ips = request.META.get('HTTP_X_' + settings.PROXY_PASS_CUSTOM_HEADER_NAME.upper() + "_CLIENT_IP", None)
     if ips is None:
         return None
     ips = ips.split(",")
