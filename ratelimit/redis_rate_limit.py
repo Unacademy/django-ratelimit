@@ -124,7 +124,7 @@ class IpRateLimiter(RateLimiter):
         results = self._pipeline.execute()
         if not results[0]:
             return True
-        return results[2] < self._limit
+        return results[1] < self._limit
 
     @property
     def remaining_requests(self):
