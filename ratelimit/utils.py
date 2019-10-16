@@ -60,6 +60,7 @@ def _method_match(request, method=ALL):
 
 
 rate_re = re.compile('([\d]+)/([\d]*)([smhd])?')
+private_ip = re.compile("^172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]{1,3}\.[0-9]{1,3}$")
 
 
 def _split_rate(rate):
@@ -292,6 +293,16 @@ def block_ip(request, func, function_to_get_attributes, rate):
     redis_set.add(hash_value)
 
 
+def get_right_most_public_ip(ips):
+    index = len(ips)
+    while index > 0:
+        ip = ips[index - 1]
+        if not private_ip.match(ip):
+            return ip
+        index -= 1
+    return None
+
+
 def get_custom_ip_from_request(request):
     ips = request.META.get('HTTP_X_' + settings.PROXY_PASS_CUSTOM_HEADER_NAME + "_CLIENT_IP", None)
     if ips is None:
@@ -299,4 +310,4 @@ def get_custom_ip_from_request(request):
     ips = ips.split(",")
     if len(ips) == 0:
         return None
-    return ips[-1]
+    return get_right_most_public_ip(ips)
