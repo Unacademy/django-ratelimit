@@ -272,7 +272,8 @@ def is_authenticated(user):
 def get_cache_key_for_ip_blocking(request, func):
     ip = get_custom_ip_from_request(request)
     name = func.__name__
-    keys = [ip, name]
+    url = request.path
+    keys = [ip, name, url]
     return 'ip_rl:' + hashlib.md5(u''.join(keys).encode('utf-8')).hexdigest()
 
 
