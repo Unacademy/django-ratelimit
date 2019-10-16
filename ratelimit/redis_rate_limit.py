@@ -102,8 +102,11 @@ class IpRateLimiter(RateLimiter):
         self._pipeline = self._connection.connection.pipeline()
 
     def add(self, value):
+        self._pipeline.exists(self._key)
+        results = self._pipeline.execute()
         self._pipeline.sadd(self._key, value)
-        self._pipeline.expire(self._key, self._window)
+        if not results[0]:
+            self._pipeline.expire(self._key, self._window)
         self._pipeline.execute()
 
     def count(self):
