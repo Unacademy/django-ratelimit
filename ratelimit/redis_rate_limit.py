@@ -118,7 +118,7 @@ class IpRateLimiter(RateLimiter):
         self._pipeline.delete(self._key)
         self._pipeline.execute()
 
-    def is_allowed(self, log_current_request=True):
+    def is_allowed(self):
         self._pipeline.exists(self._key)
         self._pipeline.ttl(self._key)
         self._pipeline.scard(self._key)
