@@ -120,13 +120,9 @@ class IpRateLimiter(RateLimiter):
 
     def is_allowed(self):
         self._pipeline.exists(self._key)
-        self._pipeline.ttl(self._key)
         self._pipeline.scard(self._key)
         results = self._pipeline.execute()
         if not results[0]:
-            return True
-        if results[1] < 0:
-            self.delete()
             return True
         return results[2] < self._limit
 
