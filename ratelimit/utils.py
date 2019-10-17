@@ -26,14 +26,21 @@ _PERIODS = {
 EXPIRATION_FUDGE = 5
 
 
-def user_or_ip(request):
-    if is_authenticated(request.user):
-        return str(request.user.pk)
+def get_ip(request):
+    custom_ip = get_custom_ip_from_request(request)
+    if custom_ip:
+        return custom_ip
     return request.META['HTTP_X_FORWARDED_FOR']
 
 
+def user_or_ip(request):
+    if is_authenticated(request.user):
+        return str(request.user.pk)
+    return get_ip(request)
+
+
 _SIMPLE_KEYS = {
-    'ip': lambda r: r.META['HTTP_X_FORWARDED_FOR'],
+    'ip': get_ip,
     'user': lambda r: str(r.user.pk),
     'user_or_ip': user_or_ip,
 }
