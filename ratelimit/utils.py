@@ -282,7 +282,7 @@ def get_cache_key_for_ip_blocking(request, func):
     name = func.__name__
     url = request.path
     keys = [ip, name, url]
-    return 'ip_rl:' + hashlib.md5(u''.join(keys).encode('utf-8')).hexdigest()
+    return 'ip_rl_v2:' + hashlib.md5(u''.join(keys).encode('utf-8')).hexdigest()
 
 
 def is_request_allowed(request, func, rate):
