@@ -13,7 +13,8 @@ from redis_rate_limit import redis_connection, RedisRateLimiter, IpRateLimiter
 
 from ratelimit import ALL, UNSAFE
 
-__all__ = ['is_ratelimited', 'block_ip', 'is_request_allowed', 'get_custom_ip_from_request']
+__all__ = ['is_ratelimited', 'block_ip', 'is_request_allowed', 'get_custom_ip_from_request',
+           'get_region_code_from_request', 'is_request_from_region_allowed', 'block_region']
 
 _PERIODS = {
     's': 1,
@@ -318,3 +319,30 @@ def get_custom_ip_from_request(request):
     if len(ips) == 0:
         return None
     return get_right_most_public_ip(ips)
+
+
+def get_cache_key_for_region_blocking(request, func):
+    country_code = get_region_code_from_request(request)
+    name = func.__name__
+    url = request.path
+    keys = [country_code, name, url]
+    return 'rl_region:' + hashlib.md5(u''.join(keys).encode('utf-8')).hexdigest()
+
+
+def get_region_code_from_request(request):
+    return request.META.get('HTTP_X_' + settings.PROXY_PASS_CUSTOM_HEADER_NAME.upper() + "_COUNTRY_CODE", None)
+
+
+def is_request_from_region_allowed(request, func, rate):
+    limit, period = _split_rate(rate)
+    cache_key = get_cache_key_for_region_blocking(request, func)
+    redis_set = IpRateLimiter(limit=limit, window=period, connection=redis_connection, key=cache_key)
+    return redis_set.is_allowed()
+
+
+def block_region(request, func, function_to_get_attributes, rate):
+    limit, period = _split_rate(rate)
+    cache_key = get_cache_key_for_region_blocking(request, func)
+    redis_set = IpRateLimiter(limit=limit, window=period, connection=redis_connection, key=cache_key)
+    hash_value = hashlib.md5(json.dumps(function_to_get_attributes(request))).hexdigest()
+    redis_set.add(hash_value)
