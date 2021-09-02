@@ -52,7 +52,7 @@ class RedisRateLimiterConnection(object):
     def __init__(self, host=None, connection=None):
         self.connection = None
         if host and port:
-            connection = StrictRedisCluster(startup_nodes=[{'host': host, 'port': 6379}])
+            connection = StrictRedisCluster(startup_nodes=[{'host': host, 'port': 6379}], skip_full_coverage_check=True)
             if not connection.ping():
                 raise DatastoreConnectionError
             self.connection = connection
