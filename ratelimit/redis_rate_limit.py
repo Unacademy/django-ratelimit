@@ -1,4 +1,5 @@
 import time
+import redis
 
 from functools import wraps
 from django.conf import settings
@@ -49,10 +50,13 @@ class RateLimiter(object):
 
 
 class RedisRateLimiterConnection(object):
-    def __init__(self, host=None, connection=None):
+    def __init__(self, host=None, port=None, db=0, connection=None):
         self.connection = None
         if host:
-            connection = StrictRedisCluster(startup_nodes=[{'host': host, 'port': 6379}], skip_full_coverage_check=True)
+            if settings.REDIS_HOST_INTERNAL_NEW_IS_CLUSTER:
+                connection = StrictRedisCluster(startup_nodes=[{'host': host, 'port': 6379}], skip_full_coverage_check=True)
+            else:
+                connection = redis.StrictRedis(host, port, db)
             if not connection.ping():
                 raise DatastoreConnectionError
             self.connection = connection
@@ -131,4 +135,7 @@ class IpRateLimiter(RateLimiter):
         return self._limit - self.count()
 
 
-redis_connection = RedisRateLimiterConnection(host=settings.REDIS_HOST_INTERNAL_NEW)
+if settings.REDIS_HOST_INTERNAL_NEW_IS_CLUSTER:
+    redis_connection = RedisRateLimiterConnection(host=settings.REDIS_HOST_INTERNAL_NEW)
+else:
+    redis_connection = RedisRateLimiterConnection(host=settings.REDIS_HOST_INTERNAL, port=6379, db=0)
