@@ -55,9 +55,10 @@ class RedisRateLimiterConnection(object):
         self.connection = None
         if host:
             if settings.REDIS_HOST_INTERNAL_NEW_IS_CLUSTER:
-                connection = StrictRedisCluster(startup_nodes=[{'host': host, 'port': 6379,
-                                                                'max_connections': max_connections}],
-                                                skip_full_coverage_check=True)
+                connection = StrictRedisCluster(startup_nodes=[{'host': host, 'port': 6379}],
+                                                skip_full_coverage_check=True,
+                                                max_connections=max_connections,
+                                                max_connections_per_node=True)
             else:
                 connection = redis.StrictRedis(host, port, db)
             if not connection.ping():
