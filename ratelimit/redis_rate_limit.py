@@ -1,5 +1,6 @@
 import time
 import redis
+import os
 
 from functools import wraps
 from django.conf import settings
@@ -50,11 +51,13 @@ class RateLimiter(object):
 
 
 class RedisRateLimiterConnection(object):
-    def __init__(self, host=None, port=None, db=0, connection=None):
+    def __init__(self, host=None, port=None, db=0, max_connections=5, connection=None):
         self.connection = None
         if host:
             if settings.REDIS_HOST_INTERNAL_NEW_IS_CLUSTER:
-                connection = StrictRedisCluster(startup_nodes=[{'host': host, 'port': 6379}], skip_full_coverage_check=True)
+                connection = StrictRedisCluster(startup_nodes=[{'host': host, 'port': 6379,
+                                                                'max_connections': max_connections}],
+                                                skip_full_coverage_check=True)
             else:
                 connection = redis.StrictRedis(host, port, db)
             if not connection.ping():
@@ -78,7 +81,7 @@ class RedisRateLimiter(RateLimiter):
         self._pipeline.zadd(
             self._key, key_value, key_value
         )
-        self._pipeline.expire(self._key, self._window) # set key expiry
+        self._pipeline.expire(self._key, self._window)  # set key expiry
         self._pipeline.execute()
 
     def is_allowed(self, log_current_request=True):
@@ -136,6 +139,9 @@ class IpRateLimiter(RateLimiter):
 
 
 if settings.REDIS_HOST_INTERNAL_NEW_IS_CLUSTER:
-    redis_connection = RedisRateLimiterConnection(host=settings.REDIS_HOST_INTERNAL_NEW)
+    redis_connection = RedisRateLimiterConnection(host=settings.REDIS_HOST_INTERNAL_NEW,
+                                                  max_connections=int(os.getenv('API_REDIS_MAX_CONNECTIONS', '5')))
 else:
-    redis_connection = RedisRateLimiterConnection(host=settings.REDIS_HOST_INTERNAL, port=6379, db=0)
+    redis_connection = RedisRateLimiterConnection(host=settings.REDIS_HOST_INTERNAL,
+                                                  port=6379,
+                                                  db=0)
