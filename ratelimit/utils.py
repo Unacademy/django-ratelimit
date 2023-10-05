@@ -312,13 +312,15 @@ def get_right_most_public_ip(ips):
 
 
 def get_custom_ip_from_request(request):
-    ips = request.META.get('HTTP_X_' + settings.PROXY_PASS_CUSTOM_HEADER_NAME.upper() + "_CLIENT_IP", None)
-    if ips is None:
-        return None
-    ips = ips.split(",")
-    if len(ips) == 0:
-        return None
-    return get_right_most_public_ip(ips)
+    try:
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('HTTP_X_REAL_IP')
+        return ip
+    except Exception as e:
+        return ""
 
 
 def get_cache_key_for_region_blocking(request, func):
