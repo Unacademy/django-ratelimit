@@ -9,7 +9,7 @@ from django.conf import settings
 from django.core.cache import caches
 from django.core.exceptions import ImproperlyConfigured
 
-from redis_rate_limit import redis_connection, RedisRateLimiter, IpRateLimiter
+from .redis_rate_limit import redis_connection, RedisRateLimiter, IpRateLimiter
 
 from ratelimit import ALL, UNSAFE
 
