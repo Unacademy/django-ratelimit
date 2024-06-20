@@ -1,4 +1,4 @@
-VERSION = (1, 1, 0)
+VERSION = (1, 3, 7)
 __version__ = '.'.join(map(str, VERSION))
 
 ALL = (None,)  # Sentinel value for all HTTP methods.
