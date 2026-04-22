@@ -4,13 +4,13 @@ import os
 
 from functools import wraps
 from django.conf import settings
-from rediscluster import StrictRedisCluster
+from redis.cluster import RedisCluster
 from .exceptions import RateLimited, DatastoreConnectionError
 
 __author__ = 'vikaschahal'
 
 
-class RateLimiter(object):
+class RateLimiter:
     """Base class for Rate Limiting"""
 
     def __init__(self, limit, window, connection, key):
@@ -50,15 +50,16 @@ class RateLimiter(object):
         return decorated
 
 
-class RedisRateLimiterConnection(object):
+class RedisRateLimiterConnection:
     def __init__(self, host=None, port=None, db=0, max_connections=5, connection=None):
         self.connection = None
         if host:
             if settings.REDIS_HOST_INTERNAL_NEW_IS_CLUSTER:
-                connection = StrictRedisCluster(startup_nodes=[{'host': host, 'port': 6379}],
-                                                skip_full_coverage_check=True,
-                                                max_connections=max_connections,
-                                                max_connections_per_node=True)
+                from redis.cluster import ClusterNode
+                connection = RedisCluster(
+                    startup_nodes=[ClusterNode(host, 6379)],
+                    max_connections=max_connections,
+                )
             else:
                 connection = redis.StrictRedis(host, port, db)
             if not connection.ping():
@@ -74,14 +75,12 @@ class RedisRateLimiterConnection(object):
 
 class RedisRateLimiter(RateLimiter):
     def __init__(self, limit, window, connection, key):
-        super(RedisRateLimiter, self).__init__(limit, window, connection, key)
+        super().__init__(limit, window, connection, key)
         self._pipeline = self._connection.connection.pipeline()
 
     def _increment_request(self):
         key_value = int(time.time()) + self._window
-        self._pipeline.zadd(
-            self._key, key_value, key_value
-        )
+        self._pipeline.zadd(self._key, {key_value: key_value})
         self._pipeline.expire(self._key, self._window)  # set key expiry
         self._pipeline.execute()
 
@@ -106,7 +105,7 @@ class RedisRateLimiter(RateLimiter):
 
 class IpRateLimiter(RateLimiter):
     def __init__(self, limit, window, connection, key):
-        super(IpRateLimiter, self).__init__(limit, window, connection, key)
+        super().__init__(limit, window, connection, key)
         self._pipeline = self._connection.connection.pipeline()
 
     def add(self, value):

@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from ratelimit import ALL, UNSAFE
 from ratelimit.decorators import ratelimit
 
@@ -7,7 +5,7 @@ from ratelimit.decorators import ratelimit
 __all__ = ['RatelimitMixin']
 
 
-class RatelimitMixin(object):
+class RatelimitMixin:
     """
     Mixin for usage in Class Based Views
     configured with the decorator ``ratelimit`` defaults.

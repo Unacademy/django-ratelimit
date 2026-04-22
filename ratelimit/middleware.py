@@ -1,12 +1,6 @@
-try:
-    from django.utils.importlib import import_module
-except ImportError:
-    from importlib import import_module
+from importlib import import_module
 
-try:
-    from django.utils.deprecation import MiddlewareMixin
-except ImportError:
-    MiddlewareMixin = object
+from django.utils.deprecation import MiddlewareMixin
 
 from django.conf import settings
 
