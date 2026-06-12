@@ -9,7 +9,7 @@ from django.conf import settings
 from django.core.cache import caches
 from django.core.exceptions import ImproperlyConfigured
 
-from redis_rate_limit import redis_connection, RedisRateLimiter, IpRateLimiter
+from ratelimit.redis_rate_limit import redis_connection, RedisRateLimiter, IpRateLimiter
 
 from ratelimit import ALL, UNSAFE
 
@@ -67,8 +67,8 @@ def _method_match(request, method=ALL):
     return request.method in [m.upper() for m in method]
 
 
-rate_re = re.compile('([\d]+)/([\d]*)([smhd])?')
-private_ip = re.compile("^172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]{1,3}\.[0-9]{1,3}$")
+rate_re = re.compile(r'(\d+)/(\d*)([smhd])?')
+private_ip = re.compile(r"^172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]{1,3}\.[0-9]{1,3}$")
 
 
 def _split_rate(rate):
@@ -111,7 +111,7 @@ def _make_cache_key(group, rate, value, methods, sliding_window=False):
             methods = ''.join(sorted([m.upper() for m in methods]))
         parts.append(methods)
     prefix = getattr(settings, 'RATELIMIT_CACHE_PREFIX', 'rl:')
-    return prefix + hashlib.md5(u''.join(parts).encode('utf-8')).hexdigest()
+    return prefix + hashlib.md5(''.join(parts).encode('utf-8')).hexdigest()
 
 
 def _get_value_from_key(request, group=None, key=None):
@@ -120,7 +120,6 @@ def _get_value_from_key(request, group=None, key=None):
     if callable(key):
         value = key(group, request)
     elif key in _SIMPLE_KEYS:
-        print(_SIMPLE_KEYS[key](request))
         value = _SIMPLE_KEYS[key](request)
     elif ':' in key:
         accessor, k = key.split(':', 1)
@@ -228,7 +227,6 @@ def get_usage_count(request, group=None, fn=None, key=None, rate=None,
     if callable(key):
         value = key(group, request)
     elif key in _SIMPLE_KEYS:
-        print(_SIMPLE_KEYS[key](request))
         value = _SIMPLE_KEYS[key](request)
     elif ':' in key:
         accessor, k = key.split(':', 1)
@@ -271,11 +269,7 @@ is_ratelimited.UNSAFE = UNSAFE
 
 
 def is_authenticated(user):
-    # is_authenticated was a method in Django < 1.10
-    if callable(user.is_authenticated):
-        return user.is_authenticated()
-    else:
-        return user.is_authenticated
+    return user.is_authenticated
 
 
 def get_cache_key_for_ip_blocking(request, func):
@@ -283,7 +277,7 @@ def get_cache_key_for_ip_blocking(request, func):
     name = func.__name__
     url = request.path
     keys = [ip, name, url]
-    return 'ip_rl_v2:' + hashlib.md5(u''.join(keys).encode('utf-8')).hexdigest()
+    return 'ip_rl_v2:' + hashlib.md5(''.join(keys).encode('utf-8')).hexdigest()
 
 
 def is_request_allowed(request, func, rate):
@@ -297,7 +291,7 @@ def block_ip(request, func, function_to_get_attributes, rate):
     limit, period = _split_rate(rate)
     cache_key = get_cache_key_for_ip_blocking(request, func)
     redis_set = IpRateLimiter(limit=limit, window=period, connection=redis_connection, key=cache_key)
-    hash_value = hashlib.md5(json.dumps(function_to_get_attributes(request))).hexdigest()
+    hash_value = hashlib.md5(json.dumps(function_to_get_attributes(request)).encode('utf-8')).hexdigest()
     redis_set.add(hash_value)
 
 
@@ -319,7 +313,7 @@ def get_custom_ip_from_request(request):
         else:
             ip = request.META.get('HTTP_X_REAL_IP')
         return ip
-    except Exception as e:
+    except Exception:
         return ""
 
 
@@ -328,7 +322,7 @@ def get_cache_key_for_region_blocking(request, func):
     name = func.__name__
     url = request.path
     keys = [country_code, name, url]
-    return 'rl_region:' + hashlib.md5(u''.join(keys).encode('utf-8')).hexdigest()
+    return 'rl_region:' + hashlib.md5(''.join(keys).encode('utf-8')).hexdigest()
 
 
 def get_region_code_from_request(request):
@@ -346,5 +340,5 @@ def block_region(request, func, function_to_get_attributes, rate):
     limit, period = _split_rate(rate)
     cache_key = get_cache_key_for_region_blocking(request, func)
     redis_set = IpRateLimiter(limit=limit, window=period, connection=redis_connection, key=cache_key)
-    hash_value = hashlib.md5(json.dumps(function_to_get_attributes(request))).hexdigest()
+    hash_value = hashlib.md5(json.dumps(function_to_get_attributes(request)).encode('utf-8')).hexdigest()
     redis_set.add(hash_value)
